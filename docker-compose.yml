@@ -1,29 +1,38 @@
 version: '3.8'
 
 services:
-  app:
-    build: .
+  user-service:
+    build: ./services/user-service
     ports:
-      - "3000:3000"
+      - "3001:3001"
     environment:
-      - NODE_ENV=development
-      - MONGODB_URI_DEV=mongodb://mongodb:27017/ai-quiz-dev
-    volumes:
-      - .:/app
-      - /app/node_modules
-    depends_on:
-      - mongodb
-    restart: unless-stopped
-  
-  mongodb:
-    image: mongo:6.0
-    ports:
-      - "27017:27017"
-    environment:
-      - MONGO_INITDB_DATABASE=ai-quiz-dev
-    volumes:
-      - mongodb_data:/data/db
-    restart: unless-stopped
+      - PORT=3001
+      - SERVICE_NAME=user-service
+    networks:
+      - quiz-network
 
-volumes:
-  mongodb_data:
+  quiz-service:
+    build: ./services/quiz-service
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - SERVICE_NAME=quiz-service
+    networks:
+      - quiz-network
+
+  results-service:
+    build: ./services/results-service
+    ports:
+      - "3003:3003"
+    environment:
+      - PORT=3003
+      - SERVICE_NAME=results-service
+      - QUIZ_SERVICE_URL=http://quiz-service:3002
+    networks:
+      - quiz-network
+
+
+networks:
+  quiz-network:
+    driver: bridge
