@@ -1,15 +1,15 @@
-# AI Quiz Platform - Backend
+# Backend Service
 
-Day 1 implementation of the AI Quiz Platform backend service.
+This is the legacy monolithic backend. The current architecture uses three microservices instead.
 
 ## Features
 
-- ✅ Express.js REST API
-- ✅ MongoDB database connection
-- ✅ Claude AI integration
-- ✅ Security middleware (Helmet, CORS, Rate Limiting)
-- ✅ Environment-based configuration
-- ✅ Health check endpoints
+- Express.js REST API
+- MongoDB database integration
+- Claude AI integration
+- Security middleware (Helmet, CORS, Rate Limiting)
+- Environment-based configuration  
+- Health check endpoints
 
 ## Prerequisites
 
@@ -24,33 +24,23 @@ npm install
 ```
 
 ## Configuration
-Create a .env file in the backend directory:
 
 ```env
 NODE_ENV=development
 PORT=3000
 MONGODB_URI=mongodb://localhost:27017/ai-quiz-platform
-JWT_SECRET=your-secret-key
-CLAUDE_API_KEY=your-claude-api-key
+JWT_SECRET=your-secret
+CLAUDE_API_KEY=sk-ant-...
 ```
 
-## Running the Application
+## Running
 
 ```bash
-# Development mode (with auto-restart)
-npm run dev
-
-# Production mode
-npm start
-
-# Run tests
-npm test
-
-# Lint code
-npm run lint
-
-# Format code
-npm run format
+npm start        # Production
+npm run dev      # Development with nodemon
+npm run lint     # ESLint
+npm run test     # Test suite
+npm run format   # Prettier formatting
 ```
 
 ## API Endpoints
