@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: auth-mongodb
+    ports:
+      - "27019:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: quiz_platform
+    volumes:
+      - mongodb_data:/data/db
+      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    networks:
+      - auth-network
+
+  auth-service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: auth-service
+    ports:
+      - "8000:8000"
+    environment:
+      MONGODB_URL: mongodb://admin:password123@mongodb:27017/quiz_platform?authSource=admin
+      JWT_SECRET_KEY: super-secret-jwt-key-change-in-production
+      PORT: 8000
+    depends_on:
+      - mongodb
+    networks:
+      - auth-network
+
+volumes:
+  mongodb_data:
+
+networks:
+  auth-network:
+    driver: bridge

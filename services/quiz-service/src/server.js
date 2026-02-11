@@ -4,7 +4,9 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const { verifyToken } = require('./middleware/auth');
 require('dotenv').config();
+
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -111,7 +113,7 @@ app.get('/api/quizzes/:id', (req, res) => {
 });
 
 // Get quiz with answers (for internal use or admin)
-app.get('/api/quizzes/:id/answers', (req, res) => {
+app.get('/api/quizzes/:id/answers', verifyToken, (req, res) => {
     const quizId = parseInt(req.params.id);
     const quiz = quizzes.find(q => q.id === quizId);
 
@@ -126,7 +128,7 @@ app.get('/api/quizzes/:id/answers', (req, res) => {
 });
 
 // Create new quiz
-app.post('/api/quizzes', (req, res) => {
+app.post('/api/quizzes', verifyToken, (req, res) => {
     const { title, description, difficulty, questions } = req.body;
 
     // Validation
