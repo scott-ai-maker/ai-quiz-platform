@@ -34,8 +34,10 @@ app.include_router(auth_router)
 async def startup():
     """Log startup - database initialization will happen on first request"""
     print("✅ Authentication service started", file=sys.stdout, flush=True)
-    print("📚 API Documentation: http://localhost:8000/docs", file=sys.stdout, flush=True)
-    print("📚 Interactive API Docs: http://localhost:8000/docs", file=sys.stdout, flush=True)
+    print("📚 API Documentation: http://localhost:8000/docs",
+          file=sys.stdout, flush=True)
+    print("📚 Interactive API Docs: http://localhost:8000/docs",
+          file=sys.stdout, flush=True)
     # Initialize database from get_auth_service will handle retries lazily
 
 
