@@ -414,6 +414,38 @@ class QuizRepository {
             client.release();
         }
     }
+
+    // Get count of quizzes created by a user (for quota enforcement)
+    async getCreatorQuizCount(userId) {
+        if (!userId) {
+            return 0;
+        }
+
+        const cacheKey = `creator_count:${userId}`;
+        const cached = await this.getCached(cacheKey);
+        if (cached !== null) {
+            return cached;
+        }
+
+        const client = await pool.connect();
+        try {
+            const query = `
+                SELECT COUNT(*) as count
+                FROM quizzes
+                WHERE created_by = $1 AND is_active = true
+            `;
+
+            const result = await client.query(query, [userId]);
+            const count = parseInt(result.rows[0].count, 10);
+
+            // Cache for 5 minutes (shorter TTL since it changes with new quiz creation)
+            await this.setCached(cacheKey, count, 300);
+
+            return count;
+        } finally {
+            client.release();
+        }
+    }
 }
 
 module.exports = QuizRepository;

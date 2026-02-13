@@ -161,14 +161,22 @@ class QuizRepository {
 
 ### QuizService Class
 
-The service layer handles business logic:
+The service layer enforces business logic and validation rules:
 
 ```javascript
 class QuizService {
-  // Validation
-  validateQuizData(quizData)
+  // Business Rule Constants
+  MAX_QUIZZES_PER_USER = 50                // Prevent abuse
+  MAX_QUESTION_TYPE_PERCENTAGE = 0.80      // Ensure variety (80% limit)
+  MIN_QUESTIONS_FOR_PROGRESSION = 3        // Difficulty validation threshold
   
-  // CRUD with business rules
+  // Validation methods
+  validateQuizData(quizData, enforceProgression)
+  validateDifficultyProgression(questions)
+  validateQuestionTypeDistribution(questions)
+  async validateUserQuota(userId)
+  
+  // CRUD operations with business rules
   async createQuiz(quizData, userId)
   async getQuizById(quizId, includeAnswers)
   async getAllQuizzes(filters)
@@ -183,6 +191,107 @@ class QuizService {
   async healthCheck()
 }
 ```
+
+## Business Logic Layer
+
+### Exception Hierarchy
+
+Custom exception system provides clear error semantics with appropriate HTTP status codes:
+
+```
+QuizServiceError (Base)
+├── ValidationError (400)
+│   ├── DifficultyProgressionError (400)
+│   └── QuestionTypeDistributionError (400)
+├── QuizNotFoundError (404)
+├── QuizCreationLimitError (429)
+├── UnauthorizedError (403)
+├── InvalidStateError (409)
+└── DatabaseError (500)
+```
+
+Each exception includes:
+- Structured error response with `toJSON()` method
+- Specific error codes for programmatic handling
+- Contextual data (e.g., current/max values, missing fields)
+- Automatic HTTP status code mapping via global error handler
+
+### Business Rules Enforced
+
+#### 1. User Quota Management
+**Constraint**: Maximum 50 quizzes per user
+
+**Rationale**: Prevents system abuse and ensures fair resource allocation
+
+**Implementation**: `getCreatorQuizCount()` queries database with 5-minute cache TTL
+
+**Error Response (429)**:
+```json
+{
+  "error": "QuizCreationLimitError",
+  "errorCode": "QUOTA_EXCEEDED",
+  "message": "Quiz creation limit exceeded. You have 50 quizzes, maximum allowed is 50",
+  "currentCount": 50,
+  "maxAllowed": 50
+}
+```
+
+#### 2. Difficulty Progression
+**Constraint**: Quizzes with 3+ questions must include beginner, intermediate, and advanced difficulty levels
+
+**Rationale**: Ensures educational value and proper learning curve progression
+
+**Implementation**: Validates presence of required difficulty levels in question set
+
+**Error Response (400)**:
+```json
+{
+  "error": "DifficultyProgressionError",
+  "errorCode": "DIFFICULTY_PROGRESSION_ERROR",
+  "message": "Quiz must include questions from all difficulty levels. Missing: intermediate, advanced",
+  "missingDifficulties": ["intermediate", "advanced"],
+  "progression": ["beginner"]
+}
+```
+
+#### 3. Question Type Distribution
+**Constraint**: No single question type may exceed 80% of total questions
+
+**Rationale**: Maintains quiz variety and prevents monotonous assessment patterns
+
+**Implementation**: Calculates type-to-total ratio for each question type
+
+**Error Response (400)**:
+```json
+{
+  "error": "QuestionTypeDistributionError",
+  "errorCode": "QUESTION_TYPE_DISTRIBUTION_ERROR",
+  "message": "Question type 'multiple_choice' represents 85.7% of questions. Maximum allowed is 80% to ensure quiz variety.",
+  "distribution": {
+    "multiple_choice": 6,
+    "short_answer": 1
+  }
+}
+```
+
+### Global Error Handler
+
+Centralized middleware maps exceptions to HTTP responses:
+
+```javascript
+app.use((err, req, res, next) => {
+  if (err instanceof ValidationError) return res.status(400).json(err.toJSON());
+  if (err instanceof QuizNotFoundError) return res.status(404).json(err.toJSON());
+  if (err instanceof QuizCreationLimitError) return res.status(429).json(err.toJSON());
+  // ... additional exception types
+});
+```
+
+**Benefits**:
+- Consistent error format across all endpoints
+- No duplicate error handling in controllers
+- Easy extension with new exception types
+- Automatic logging and monitoring integration points
 
 ## Caching Strategy
 

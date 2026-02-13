@@ -8,6 +8,16 @@ const helmet = require('helmet');
 const { verifyToken } = require('./middleware/auth');
 const { initializeDatabase, closeDatabase } = require('./config/database');
 const QuizService = require('./services/QuizService');
+const {
+    ValidationError,
+    QuizNotFoundError,
+    QuizCreationLimitError,
+    UnauthorizedError,
+    DifficultyProgressionError,
+    QuestionTypeDistributionError,
+    DatabaseError,
+    InvalidStateError
+} = require('./exceptions/QuizExceptions');
 require('dotenv').config();
 
 const app = express();
@@ -37,8 +47,8 @@ app.get('/health', async (req, res) => {
 // Service info endpoint
 app.get('/api/info', (req, res) => {
     res.json({
-        message: 'Quiz Service API - Repository Pattern with PostgreSQL + Redis',
-        version: '2.0.0',
+        message: 'Quiz Service API - Repository Pattern with Business Logic Layer',
+        version: '2.1.0',
         service: SERVICE_NAME,
         port: PORT,
         architecture: 'API → Service → Repository → Database',
@@ -58,7 +68,7 @@ app.get('/api/info', (req, res) => {
 });
 
 // Get all quizzes with optional filters
-app.get('/api/quizzes', async (req, res) => {
+app.get('/api/quizzes', async (req, res, next) => {
     try {
         const filters = {
             category: req.query.category,
@@ -71,15 +81,12 @@ app.get('/api/quizzes', async (req, res) => {
         const result = await quizService.getAllQuizzes(filters);
         res.json(result);
     } catch (error) {
-        res.status(500).json({
-            error: 'Failed to fetch quizzes',
-            message: error.message
-        });
+        next(error);
     }
 });
 
 // Create new quiz - requires authentication
-app.post('/api/quizzes', verifyToken, async (req, res) => {
+app.post('/api/quizzes', verifyToken, async (req, res, next) => {
     try {
         const quizData = req.body;
         const userId = req.user?.username; // From JWT token
@@ -91,38 +98,23 @@ app.post('/api/quizzes', verifyToken, async (req, res) => {
             ...result
         });
     } catch (error) {
-        if (error.message.startsWith('Validation failed')) {
-            return res.status(400).json({
-                error: 'Validation failed',
-                message: error.message
-            });
-        }
-        res.status(500).json({
-            error: 'Failed to create quiz',
-            message: error.message
-        });
+        next(error);
     }
 });
 
 // Get recent active quizzes (uses composite index for performance) - SPECIFIC ROUTE BEFORE :id
-app.get('/api/quizzes/recent', async (req, res) => {
+app.get('/api/quizzes/recent', async (req, res, next) => {
     try {
         const limit = parseInt(req.query.limit) || 10;
         const result = await quizService.getRecentQuizzes(limit);
         res.json(result);
     } catch (error) {
-        if (error.message.includes('must be between')) {
-            return res.status(400).json({ error: error.message });
-        }
-        res.status(500).json({
-            error: 'Failed to fetch recent quizzes',
-            message: error.message
-        });
+        next(error);
     }
 });
 
 // Get quizzes by category (uses composite index for performance) - SPECIFIC ROUTE BEFORE :id
-app.get('/api/quizzes/category/:category', async (req, res) => {
+app.get('/api/quizzes/category/:category', async (req, res, next) => {
     try {
         const { category } = req.params;
         const { difficulty } = req.query;
@@ -130,86 +122,65 @@ app.get('/api/quizzes/category/:category', async (req, res) => {
         const result = await quizService.getQuizzesByCategory(category, difficulty);
         res.json(result);
     } catch (error) {
-        if (error.message.includes('Invalid')) {
-            return res.status(400).json({ error: error.message });
-        }
-        res.status(500).json({
-            error: 'Failed to fetch quizzes by category',
-            message: error.message
-        });
+        next(error);
     }
 });
 
 // Get specific quiz (without answers - for taking quiz) - GENERIC :id ROUTE
-app.get('/api/quizzes/:id', async (req, res) => {
+app.get('/api/quizzes/:id', async (req, res, next) => {
     try {
         const quizId = parseInt(req.params.id);
         
         if (isNaN(quizId)) {
-            return res.status(400).json({ error: 'Invalid quiz ID' });
+            throw new ValidationError('Invalid quiz ID');
         }
 
         const quiz = await quizService.getQuizForTaking(quizId);
         res.json({ quiz });
     } catch (error) {
-        if (error.message === 'Quiz not found') {
-            return res.status(404).json({ error: 'Quiz not found', quizId: req.params.id });
-        }
-        if (error.message === 'Quiz is not available') {
-            return res.status(403).json({ error: 'Quiz is not available' });
-        }
-        res.status(500).json({ error: 'Failed to fetch quiz', message: error.message });
+        next(error);
     }
 });
 
 // Get quiz statistics - SPECIFIC :id/stats ROUTE
-app.get('/api/quizzes/:id/stats', async (req, res) => {
+app.get('/api/quizzes/:id/stats', async (req, res, next) => {
     try {
         const quizId = parseInt(req.params.id);
         
         if (isNaN(quizId)) {
-            return res.status(400).json({ error: 'Invalid quiz ID' });
+            throw new ValidationError('Invalid quiz ID');
         }
 
         const stats = await quizService.getQuizStats(quizId);
         res.json(stats);
     } catch (error) {
-        if (error.message === 'Quiz not found') {
-            return res.status(404).json({ error: 'Quiz not found' });
-        }
-        res.status(500).json({
-            error: 'Failed to fetch quiz statistics',
-            message: error.message
-        });
+        next(error);
     }
 });
 
 // Get quiz with answers (for internal use or admin) - requires authentication
-app.get('/api/quizzes/:id/answers', verifyToken, async (req, res) => {
+app.get('/api/quizzes/:id/answers', verifyToken, async (req, res, next) => {
     try {
         const quizId = parseInt(req.params.id);
         
         if (isNaN(quizId)) {
-            return res.status(400).json({ error: 'Invalid quiz ID' });
+            throw new ValidationError('Invalid quiz ID');
         }
 
         const quiz = await quizService.getQuizById(quizId, true);
         res.json({ quiz });
     } catch (error) {
-        if (error.message === 'Quiz not found') {
-            return res.status(404).json({ error: 'Quiz not found', quizId: req.params.id });
-        }
-        res.status(500).json({ error: 'Failed to fetch quiz', message: error.message });
+        next(error);
     }
 });
 
 // Update quiz - requires authentication
-app.put('/api/quizzes/:id', verifyToken, async (req, res) => {
+app.put('/api/quizzes/:id', verifyToken, async (req, res, next) => {
     try {
         const quizId = parseInt(req.params.id);
         
         if (isNaN(quizId)) {
-            return res.status(400).json({ error: 'Invalid quiz ID' });
+            throw new ValidationError('Invalid quiz ID');
         }
 
         const updateData = req.body;
@@ -222,26 +193,17 @@ app.put('/api/quizzes/:id', verifyToken, async (req, res) => {
             ...result
         });
     } catch (error) {
-        if (error.message === 'Quiz not found') {
-            return res.status(404).json({ error: 'Quiz not found' });
-        }
-        if (error.message.includes('cannot be empty') || error.message.includes('Invalid')) {
-            return res.status(400).json({ error: error.message });
-        }
-        res.status(500).json({
-            error: 'Failed to update quiz',
-            message: error.message
-        });
+        next(error);
     }
 });
 
 // Delete quiz - requires authentication
-app.delete('/api/quizzes/:id', verifyToken, async (req, res) => {
+app.delete('/api/quizzes/:id', verifyToken, async (req, res, next) => {
     try {
         const quizId = parseInt(req.params.id);
         
         if (isNaN(quizId)) {
-            return res.status(400).json({ error: 'Invalid quiz ID' });
+            throw new ValidationError('Invalid quiz ID');
         }
 
         const hardDelete = req.query.hard === 'true';
@@ -249,13 +211,7 @@ app.delete('/api/quizzes/:id', verifyToken, async (req, res) => {
         
         res.json(result);
     } catch (error) {
-        if (error.message === 'Quiz not found') {
-            return res.status(404).json({ error: 'Quiz not found' });
-        }
-        res.status(500).json({
-            error: 'Failed to delete quiz',
-            message: error.message
-        });
+        next(error);
     }
 });
 
@@ -268,12 +224,43 @@ app.use((req, res) => {
     });
 });
 
-// Error handler
+// Global error handler middleware - Maps custom exceptions to HTTP status codes
 app.use((err, req, res, next) => {
-    console.error(err.stack);
+    console.error('Error:', err.name, err.message);
+    
+    // Custom exception handling with specific HTTP status codes
+    if (err instanceof ValidationError || 
+        err instanceof DifficultyProgressionError || 
+        err instanceof QuestionTypeDistributionError) {
+        return res.status(400).json(err.toJSON());
+    }
+    
+    if (err instanceof QuizNotFoundError) {
+        return res.status(404).json(err.toJSON());
+    }
+    
+    if (err instanceof QuizCreationLimitError) {
+        return res.status(429).json(err.toJSON());
+    }
+    
+    if (err instanceof UnauthorizedError) {
+        return res.status(403).json(err.toJSON());
+    }
+    
+    if (err instanceof InvalidStateError) {
+        return res.status(409).json(err.toJSON());
+    }
+    
+    if (err instanceof DatabaseError) {
+        return res.status(500).json(err.toJSON());
+    }
+    
+    // Generic error fallback
+    console.error('Unhandled error:', err.stack);
     res.status(500).json({
         error: 'Internal Server Error',
-        message: process.env.NODE_ENV === 'development' ? err.message : undefined
+        message: process.env.NODE_ENV === 'development' ? err.message : 'An unexpected error occurred',
+        errorCode: 'INTERNAL_ERROR'
     });
 });
 

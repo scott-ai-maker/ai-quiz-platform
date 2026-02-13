@@ -113,7 +113,8 @@ async function runMigrations(client) {
             )
         `);
         
-        // Create composite indexes as per Day 5 requirements
+        // Create composite indexes for optimized query performance
+        // idx_quiz_category_difficulty: Optimizes category-filtered queries
         await client.query(`
             CREATE INDEX IF NOT EXISTS idx_quiz_category_difficulty 
             ON quizzes(category, difficulty)

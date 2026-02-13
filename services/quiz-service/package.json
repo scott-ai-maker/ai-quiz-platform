@@ -1,6 +1,6 @@
 {
   "name": "quiz-service",
-  "version": "1.0.0",
+  "version": "2.1.0",
   "main": "index.js",
   "scripts": {
     "start": "node src/server.js",
@@ -10,7 +10,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "Enterprise quiz management service with repository pattern and intelligent business logic",
   "dependencies": {
     "cors": "^2.8.6",
     "dotenv": "^17.2.4",
