@@ -16,7 +16,16 @@ AI calls are not traditional CRUD operations. They have variable latency, interm
 ## API
 
 - `POST /api/ai/generate-question` — generate a quiz question with resilience pipeline
+- `GET /api/ai/logs` — retrieve request logs with filters and pagination
 - `GET /health` — health endpoint
+
+### Logs endpoint query parameters
+
+- `page` (default: `1`)
+- `limit` (default: `20`, max: `100`)
+- `outcome` (`success`, `fallback`, `failed`)
+- `provider` (exact match)
+- `topic` (case-insensitive partial match)
 
 ## Run locally
 

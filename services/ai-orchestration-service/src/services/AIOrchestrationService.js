@@ -42,6 +42,36 @@ class AIOrchestrationService {
     }
   }
 
+  validateLogsQuery(query = {}) {
+    const page = query.page === undefined ? 1 : Number(query.page);
+    const limit = query.limit === undefined ? 20 : Number(query.limit);
+
+    if (!Number.isInteger(page) || page < 1) {
+      throw new ValidationError('page must be a positive integer');
+    }
+
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+      throw new ValidationError('limit must be an integer between 1 and 100');
+    }
+
+    if (query.outcome) {
+      const allowedOutcomes = ['success', 'fallback', 'failed'];
+      if (!allowedOutcomes.includes(query.outcome)) {
+        throw new ValidationError(
+          `outcome must be one of: ${allowedOutcomes.join(', ')}`
+        );
+      }
+    }
+
+    return {
+      page,
+      limit,
+      outcome: query.outcome,
+      provider: query.provider,
+      topic: query.topic,
+    };
+  }
+
   validateGeneratePayload(payload) {
     if (!payload || typeof payload !== 'object') {
       throw new ValidationError('Request body is required');
@@ -185,6 +215,11 @@ class AIOrchestrationService {
 
       throw error;
     }
+  }
+
+  async listRequestLogs(query = {}) {
+    const validatedQuery = this.validateLogsQuery(query);
+    return this.logRepository.listLogs(validatedQuery);
   }
 }
 

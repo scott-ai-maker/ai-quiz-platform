@@ -15,4 +15,13 @@ router.post('/generate-question', async (req, res, next) => {
   }
 });
 
+router.get('/logs', async (req, res, next) => {
+  try {
+    const result = await aiService.listRequestLogs(req.query);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;
