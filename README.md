@@ -1,77 +1,60 @@
 # AI Quiz Platform
 
-A production-ready, microservices-based quiz platform with AI-powered content generation, intelligent scoring, and real-time analytics.
+Production-focused microservices platform for quiz delivery, AI-assisted content generation, scoring, and prompt orchestration.
 
-## Features
+## Platform Highlights
 
-- **Microservices Architecture** - Three independently deployable services
-- **Inter-Service Communication** - REST APIs with health monitoring
-- **Docker Containerization** - Production-ready with Docker Compose
-- **Security First** - Helmet.js, CORS, rate limiting
-- **Scalable Design** - Loose coupling enables independent scaling
-- **Express.js & MongoDB** - Modern, reliable stack
+- Service-oriented architecture with independently deployable services
+- PostgreSQL-backed persistence with Redis caching where applicable
+- Resilience patterns for AI calls (timeouts, retries, circuit breaker, fallback)
+- Consistent API error contracts and request ID tracing across services
+- Integration tests and smoke-test scripts for core production paths
 
-## Getting Started
+## Services
 
-### Prerequisites
-- Node.js 20+
-- MongoDB
-- Docker (optional)
-
-### Installation
-
-**Local Development:**
-```bash
-cd services/user-service && npm install && npm start
-cd services/quiz-service && npm install && npm start
-cd services/results-service && npm install && npm start
-```
-
-**Docker:**
-```bash
-docker-compose up
-```
-
-Services: http://localhost:3001, 3002, 3003
-
-## Architecture
-
-**Three Independent Microservices:**
-- **User Service (3001)** - Authentication & profiles
-- **Quiz Service (3002)** - Content & questions
-- **Results Service (3003)** - Scoring & leaderboards
+| Service | Port | Responsibility |
+|---|---:|---|
+| user-service | 3001 | User profiles and account endpoints |
+| quiz-service | 3002 | Quiz catalog and question delivery |
+| results-service | 3003 | Quiz scoring and results retrieval |
+| session-service | 3005 | Session lifecycle and progress tracking |
+| ai-orchestration-service | 3006 | Resilient AI generation orchestration |
+| prompt-framework-service | 3007 | Prompt template versioning and rendering |
 
 ## Tech Stack
 
-Node.js 20+ | Express.js | MongoDB | Docker | Helmet | CORS | Rate Limiting
+Node.js 20+, Express.js, PostgreSQL, Redis, Docker, Jest, Supertest
 
-## Development
+## Local Development
 
-```bash
-npm run dev      # Auto-reload development
-npm run lint     # ESLint
-npm run test     # Run tests
-```
-
-## Deployment
+Per service:
 
 ```bash
-docker-compose up   # Start all services
-docker-compose down # Stop services
+cd services/<service-name>
+npm install
+npm start
 ```
 
-## Security
+## Docker Compose
 
-✅ CORS configured  
-✅ Helmet.js security headers  
-✅ Rate limiting protection  
-✅ Environment-based secrets  
-✅ Service isolation via Docker networking  
+From repository root:
+
+```bash
+docker compose up -d quiz-postgres quiz-redis user-service quiz-service results-service prompt-framework-service
+```
+
+Stop containers:
+
+```bash
+docker compose down
+```
+
+## Quality Gates
+
+- Integration tests: `npm test` (run inside each service)
+- Smoke tests (available where implemented): `npm run smoke`
+- Health endpoint pattern: `GET /health`
 
 ## License
 
 MIT
-
----
-
-**Built with:** Node.js | Express | MongoDB | Docker
