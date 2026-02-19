@@ -80,6 +80,25 @@ services:
     networks:
       - quiz-network
 
+  prompt-framework-service:
+    build: ./services/prompt-framework-service
+    ports:
+      - "3007:3007"
+    environment:
+      - PORT=3007
+      - SERVICE_NAME=prompt-framework-service
+      - NODE_ENV=development
+      - POSTGRES_HOST=quiz-postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=quiz_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres123
+    depends_on:
+      quiz-postgres:
+        condition: service_healthy
+    networks:
+      - quiz-network
+
 
 networks:
   quiz-network:

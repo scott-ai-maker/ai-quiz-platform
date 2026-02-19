@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "NODE_ENV=test jest --runInBand"
+    "test": "NODE_ENV=test jest --runInBand",
+    "smoke": "./scripts/smoke-test.sh"
   },
   "description": "Prompt template management service for consistent AI interactions",
   "license": "ISC",

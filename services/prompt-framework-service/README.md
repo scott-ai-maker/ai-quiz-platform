@@ -16,3 +16,24 @@ Template management system for prompt engineering in production AI workflows.
 - `GET /api/prompts/templates/:key`
 - `POST /api/prompts/render`
 - `GET /health`
+
+## Run Locally
+
+```bash
+npm install
+npm start
+```
+
+## Smoke Test
+
+```bash
+npm run smoke
+```
+
+## Run with Docker Compose
+
+From repository root:
+
+```bash
+docker compose up -d prompt-framework-service
+```
