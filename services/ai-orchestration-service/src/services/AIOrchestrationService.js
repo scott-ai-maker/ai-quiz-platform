@@ -72,6 +72,16 @@ class AIOrchestrationService {
     };
   }
 
+  validateMetricsQuery(query = {}) {
+    const hours = query.hours === undefined ? 24 : Number(query.hours);
+
+    if (!Number.isInteger(hours) || hours < 1 || hours > 168) {
+      throw new ValidationError('hours must be an integer between 1 and 168');
+    }
+
+    return { hours };
+  }
+
   validateGeneratePayload(payload) {
     if (!payload || typeof payload !== 'object') {
       throw new ValidationError('Request body is required');
@@ -220,6 +230,11 @@ class AIOrchestrationService {
   async listRequestLogs(query = {}) {
     const validatedQuery = this.validateLogsQuery(query);
     return this.logRepository.listLogs(validatedQuery);
+  }
+
+  async getRequestLogMetrics(query = {}) {
+    const validatedQuery = this.validateMetricsQuery(query);
+    return this.logRepository.getMetrics(validatedQuery);
   }
 }
 

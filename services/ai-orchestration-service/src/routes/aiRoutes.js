@@ -24,4 +24,13 @@ router.get('/logs', async (req, res, next) => {
   }
 });
 
+router.get('/logs/metrics', async (req, res, next) => {
+  try {
+    const result = await aiService.getRequestLogMetrics(req.query);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;

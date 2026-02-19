@@ -2,11 +2,13 @@ const request = require('supertest');
 
 const mockGenerateQuestionWithFallback = jest.fn();
 const mockListRequestLogs = jest.fn();
+const mockGetRequestLogMetrics = jest.fn();
 
 jest.mock('../../src/services/AIOrchestrationService', () => {
   return jest.fn().mockImplementation(() => ({
     generateQuestionWithFallback: mockGenerateQuestionWithFallback,
     listRequestLogs: mockListRequestLogs,
+    getRequestLogMetrics: mockGetRequestLogMetrics,
   }));
 });
 
@@ -99,6 +101,53 @@ describe('AI Routes Integration', () => {
     );
 
     const response = await request(app).get('/api/ai/logs?page=0');
+
+    expect(response.status).toBe(400);
+    expect(response.body.errorCode).toBe('VALIDATION_ERROR');
+    expect(response.body.requestId).toBeDefined();
+  });
+
+  it('returns metrics summary for logs', async () => {
+    mockGetRequestLogMetrics.mockResolvedValueOnce({
+      windowHours: 24,
+      totals: {
+        totalRequests: 10,
+        successCount: 7,
+        fallbackCount: 2,
+        failedCount: 1,
+      },
+      rates: {
+        successRate: 0.7,
+        fallbackRate: 0.2,
+        failureRate: 0.1,
+      },
+      latency: {
+        averageMs: 512.4,
+        p95Ms: 1210,
+      },
+      providers: [
+        {
+          provider: 'mock-ai-v1',
+          request_count: 10,
+        },
+      ],
+    });
+
+    const response = await request(app).get('/api/ai/logs/metrics?hours=24');
+
+    expect(response.status).toBe(200);
+    expect(response.headers['x-request-id']).toBeDefined();
+    expect(response.body.windowHours).toBe(24);
+    expect(response.body.totals.totalRequests).toBe(10);
+    expect(mockGetRequestLogMetrics).toHaveBeenCalledWith({ hours: '24' });
+  });
+
+  it('returns 400 for invalid metrics query', async () => {
+    mockGetRequestLogMetrics.mockRejectedValueOnce(
+      new ValidationError('hours must be an integer between 1 and 168')
+    );
+
+    const response = await request(app).get('/api/ai/logs/metrics?hours=500');
 
     expect(response.status).toBe(400);
     expect(response.body.errorCode).toBe('VALIDATION_ERROR');

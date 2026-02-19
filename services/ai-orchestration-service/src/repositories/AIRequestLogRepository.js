@@ -89,6 +89,76 @@ class AIRequestLogRepository {
       },
     };
   }
+
+  async getMetrics(options = {}) {
+    const { hours = 24 } = options;
+
+    const summaryQuery = `
+      SELECT
+        COUNT(*)::int AS total_requests,
+        COUNT(*) FILTER (WHERE outcome = 'success')::int AS success_count,
+        COUNT(*) FILTER (WHERE outcome = 'fallback')::int AS fallback_count,
+        COUNT(*) FILTER (WHERE outcome = 'failed')::int AS failed_count,
+        ROUND(AVG(latency_ms)::numeric, 2) AS avg_latency_ms,
+        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms)
+          AS p95_latency_ms
+      FROM ai_request_logs
+      WHERE created_at >= NOW() - ($1 || ' hours')::interval
+    `;
+
+    const providerBreakdownQuery = `
+      SELECT
+        provider,
+        COUNT(*)::int AS request_count,
+        COUNT(*) FILTER (WHERE outcome = 'success')::int AS success_count,
+        COUNT(*) FILTER (WHERE outcome = 'fallback')::int AS fallback_count,
+        COUNT(*) FILTER (WHERE outcome = 'failed')::int AS failed_count,
+        ROUND(AVG(latency_ms)::numeric, 2) AS avg_latency_ms
+      FROM ai_request_logs
+      WHERE created_at >= NOW() - ($1 || ' hours')::interval
+      GROUP BY provider
+      ORDER BY request_count DESC
+    `;
+
+    const [summaryResult, providerResult] = await Promise.all([
+      pool.query(summaryQuery, [hours]),
+      pool.query(providerBreakdownQuery, [hours]),
+    ]);
+
+    const summary = summaryResult.rows[0] || {
+      total_requests: 0,
+      success_count: 0,
+      fallback_count: 0,
+      failed_count: 0,
+      avg_latency_ms: null,
+      p95_latency_ms: null,
+    };
+
+    const total = summary.total_requests || 0;
+    const successRate = total > 0 ? Number((summary.success_count / total).toFixed(4)) : 0;
+    const fallbackRate = total > 0 ? Number((summary.fallback_count / total).toFixed(4)) : 0;
+    const failureRate = total > 0 ? Number((summary.failed_count / total).toFixed(4)) : 0;
+
+    return {
+      windowHours: hours,
+      totals: {
+        totalRequests: summary.total_requests,
+        successCount: summary.success_count,
+        fallbackCount: summary.fallback_count,
+        failedCount: summary.failed_count,
+      },
+      rates: {
+        successRate,
+        fallbackRate,
+        failureRate,
+      },
+      latency: {
+        averageMs: summary.avg_latency_ms,
+        p95Ms: summary.p95_latency_ms,
+      },
+      providers: providerResult.rows,
+    };
+  }
 }
 
 module.exports = AIRequestLogRepository;

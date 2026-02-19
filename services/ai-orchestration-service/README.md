@@ -17,6 +17,7 @@ AI calls are not traditional CRUD operations. They have variable latency, interm
 
 - `POST /api/ai/generate-question` — generate a quiz question with resilience pipeline
 - `GET /api/ai/logs` — retrieve request logs with filters and pagination
+- `GET /api/ai/logs/metrics` — retrieve aggregate reliability and latency metrics
 - `GET /health` — health endpoint
 
 ### Logs endpoint query parameters
@@ -26,6 +27,10 @@ AI calls are not traditional CRUD operations. They have variable latency, interm
 - `outcome` (`success`, `fallback`, `failed`)
 - `provider` (exact match)
 - `topic` (case-insensitive partial match)
+
+### Metrics endpoint query parameters
+
+- `hours` (default: `24`, min: `1`, max: `168`)
 
 ## Run locally
 
