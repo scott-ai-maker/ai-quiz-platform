@@ -25,6 +25,19 @@ async function postJson(url, body) {
 	return { status: response.status, data };
 }
 
+async function postJsonWithHeaders(url, body, headers = {}) {
+	const response = await fetch(url, {
+		method: 'POST',
+		headers: {
+			'content-type': 'application/json',
+			...headers,
+		},
+		body: JSON.stringify(body),
+	});
+	const data = await response.json();
+	return { status: response.status, data };
+}
+
 async function waitForJobCompletion(jobId, maxAttempts = 20, waitMs = 500) {
 	for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
 		const statusResponse = await getJson(`${BASE_URL}/api/questions/jobs/${jobId}`);
@@ -100,5 +113,37 @@ describe('Question Routes Live Integration', () => {
 			expect(typeof question.prompt).toBe('string');
 			expect(Array.isArray(question.options)).toBe(true);
 		}
+	});
+
+	test('returns same job for repeated requests with same x-idempotency-key', async () => {
+		const idempotencyKey = `it-idem-${Date.now()}`;
+		const payload = {
+			topic: 'Idempotent consumers',
+			difficulty: 'easy',
+			question_count: 2,
+		};
+
+		const first = await postJsonWithHeaders(
+			`${BASE_URL}/api/questions/jobs`,
+			payload,
+			{
+				'x-idempotency-key': idempotencyKey,
+			}
+		);
+
+		const second = await postJsonWithHeaders(
+			`${BASE_URL}/api/questions/jobs`,
+			payload,
+			{
+				'x-idempotency-key': idempotencyKey,
+			}
+		);
+
+		expect(first.status).toBe(202);
+		expect(second.status).toBe(202);
+		expect(first.data.job_id).toBeDefined();
+		expect(second.data.job_id).toBe(first.data.job_id);
+		expect(first.data.is_duplicate).toBe(false);
+		expect(second.data.is_duplicate).toBe(true);
 	});
 });

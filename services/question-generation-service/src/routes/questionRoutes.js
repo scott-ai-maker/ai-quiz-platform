@@ -8,7 +8,9 @@ const jobRepository = new QuestionJobRepository();
 
 router.post('/jobs', async (req, res, next) => {
 	try {
-		const job = await questionService.createJob(req.body);
+		const job = await questionService.createJob(req.body, {
+			idempotencyKey: req.get('x-idempotency-key'),
+		});
 		res.status(202).json(job);
 	} catch (error) {
 		next(error);

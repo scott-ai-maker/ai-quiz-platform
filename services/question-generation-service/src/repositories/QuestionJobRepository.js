@@ -4,13 +4,14 @@ class QuestionJobRepository {
 	async createJob(data) {
 		const query = `
 			INSERT INTO question_generation_jobs
-			(id, topic, difficulty, question_count, status)
-			VALUES ($1, $2, $3, $4, $5)
+			(id, idempotency_key, topic, difficulty, question_count, status)
+			VALUES ($1, $2, $3, $4, $5, $6)
 			RETURNING *
 		`;
 
 		const values = [
 			data.id,
+			data.idempotency_key || null,
 			data.topic,
 			data.difficulty,
 			data.question_count,
@@ -18,6 +19,19 @@ class QuestionJobRepository {
 		];
 
 		const result = await pool.query(query, values);
+		return result.rows[0] || null;
+	}
+
+	async getJobByIdempotencyKey(idempotencyKey) {
+		if (!idempotencyKey) {
+			return null;
+		}
+
+		const result = await pool.query(
+			`SELECT * FROM question_generation_jobs WHERE idempotency_key = $1`,
+			[idempotencyKey]
+		);
+
 		return result.rows[0] || null;
 	}
 

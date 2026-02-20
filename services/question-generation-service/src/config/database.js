@@ -16,6 +16,7 @@ async function runMigrations(client) {
 	await client.query(`
 		CREATE TABLE IF NOT EXISTS question_generation_jobs (
 			id UUID PRIMARY KEY,
+			idempotency_key VARCHAR(120),
 			topic VARCHAR(200) NOT NULL,
 			difficulty VARCHAR(30) NOT NULL,
 			question_count INTEGER NOT NULL,
@@ -28,8 +29,19 @@ async function runMigrations(client) {
 	`);
 
 	await client.query(`
+		ALTER TABLE question_generation_jobs
+		ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(120)
+	`);
+
+	await client.query(`
 		CREATE INDEX IF NOT EXISTS idx_qgen_jobs_status_created
 		ON question_generation_jobs(status, created_at DESC)
+	`);
+
+	await client.query(`
+		CREATE UNIQUE INDEX IF NOT EXISTS uq_qgen_jobs_idempotency_key
+		ON question_generation_jobs(idempotency_key)
+		WHERE idempotency_key IS NOT NULL
 	`);
 }
 
