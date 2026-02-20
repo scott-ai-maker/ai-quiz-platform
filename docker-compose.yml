@@ -119,6 +119,9 @@ services:
       - AI_RETRY_BASE_DELAY_MS=250
       - AI_CIRCUIT_BREAKER_FAILURE_THRESHOLD=5
       - AI_CIRCUIT_BREAKER_RESET_TIMEOUT_MS=15000
+      - AI_PROVIDER=${AI_PROVIDER:-mock}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-3-5-haiku-latest}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     depends_on:
       quiz-postgres:
         condition: service_healthy
@@ -174,6 +177,9 @@ services:
       - POSTGRES_PASSWORD=postgres123
       - REDIS_HOST=quiz-redis
       - REDIS_PORT=6379
+      - VERIFICATION_PROVIDER=${VERIFICATION_PROVIDER:-mock}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-3-5-haiku-latest}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     depends_on:
       quiz-postgres:
         condition: service_healthy
