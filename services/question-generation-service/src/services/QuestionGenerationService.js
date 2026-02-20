@@ -46,6 +46,39 @@ class QuestionGenerationService {
 		}
 	}
 
+	validateListJobsQuery(query = {}) {
+		const page = query.page === undefined ? 1 : Number(query.page);
+		const limit = query.limit === undefined ? 20 : Number(query.limit);
+
+		if (!Number.isInteger(page) || page < 1) {
+			throw new Error('page must be a positive integer');
+		}
+
+		if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+			throw new Error('limit must be an integer between 1 and 100');
+		}
+
+		if (query.status) {
+			const allowedStatuses = ['queued', 'processing', 'completed', 'failed'];
+			if (!allowedStatuses.includes(query.status)) {
+				throw new Error(
+					`status must be one of: ${allowedStatuses.join(', ')}`
+				);
+			}
+		}
+
+		if (query.topic !== undefined && typeof query.topic !== 'string') {
+			throw new Error('topic must be a string when provided');
+		}
+
+		return {
+			page,
+			limit,
+			status: query.status,
+			topic: query.topic ? query.topic.trim() : undefined,
+		};
+	}
+
 	async enqueueJob(job) {
 		try {
 			await questionGenerationQueue.add(
@@ -151,6 +184,33 @@ class QuestionGenerationService {
 			question_count: newJob.question_count,
 			created_at: newJob.created_at,
 			is_duplicate: false,
+		};
+	}
+
+	async listJobs(query = {}) {
+		const validatedQuery = this.validateListJobsQuery(query);
+		const result = await this.repository.listJobs(validatedQuery);
+
+		return {
+			data: result.jobs.map((job) => ({
+				job_id: job.id,
+				status: job.status,
+				topic: job.topic,
+				difficulty: job.difficulty,
+				question_count: job.question_count,
+				created_at: job.created_at,
+				updated_at: job.updated_at,
+			})),
+			pagination: {
+				page: validatedQuery.page,
+				limit: validatedQuery.limit,
+				total: result.total,
+				totalPages: Math.ceil(result.total / validatedQuery.limit),
+			},
+			filters: {
+				status: validatedQuery.status || null,
+				topic: validatedQuery.topic || null,
+			},
 		};
 	}
 }

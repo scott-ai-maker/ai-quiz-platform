@@ -17,6 +17,15 @@ router.post('/jobs', async (req, res, next) => {
 	}
 });
 
+router.get('/jobs', async (req, res, next) => {
+	try {
+		const result = await questionService.listJobs(req.query);
+		return res.json(result);
+	} catch (error) {
+		return next(error);
+	}
+});
+
 router.get('/jobs/:jobId', async (req, res, next) => {
 	try {
 		const job = await jobRepository.getJobById(req.params.jobId);

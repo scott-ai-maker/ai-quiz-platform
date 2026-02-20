@@ -43,6 +43,55 @@ class QuestionJobRepository {
 		return result.rows[0] || null;
 	}
 
+	async listJobs(options = {}) {
+		const page = options.page || 1;
+		const limit = options.limit || 20;
+		const offset = (page - 1) * limit;
+
+		const whereConditions = [];
+		const values = [];
+		let parameterIndex = 1;
+
+		if (options.status) {
+			whereConditions.push(`status = $${parameterIndex}`);
+			values.push(options.status);
+			parameterIndex += 1;
+		}
+
+		if (options.topic) {
+			whereConditions.push(`topic ILIKE $${parameterIndex}`);
+			values.push(`%${options.topic}%`);
+			parameterIndex += 1;
+		}
+
+		const whereClause =
+			whereConditions.length > 0
+				? `WHERE ${whereConditions.join(' AND ')}`
+				: '';
+
+		const listQuery = `
+			SELECT * FROM question_generation_jobs
+			${whereClause}
+			ORDER BY created_at DESC
+			LIMIT $${parameterIndex}
+			OFFSET $${parameterIndex + 1}
+		`;
+
+		const countQuery = `
+			SELECT COUNT(*)::INTEGER AS total
+			FROM question_generation_jobs
+			${whereClause}
+		`;
+
+		const listResult = await pool.query(listQuery, [...values, limit, offset]);
+		const countResult = await pool.query(countQuery, values);
+
+		return {
+			jobs: listResult.rows,
+			total: countResult.rows[0]?.total || 0,
+		};
+	}
+
 	async markJobProcessing(jobId) {
 		const result = await pool.query(
 			`

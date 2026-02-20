@@ -146,4 +146,40 @@ describe('Question Routes Live Integration', () => {
 		expect(first.data.is_duplicate).toBe(false);
 		expect(second.data.is_duplicate).toBe(true);
 	});
+
+	test('lists jobs with pagination and topic filtering', async () => {
+		const uniqueTopic = `ListFilter-${Date.now()}`;
+
+		const createResponse = await postJson(`${BASE_URL}/api/questions/jobs`, {
+			topic: uniqueTopic,
+			difficulty: 'easy',
+			question_count: 1,
+		});
+
+		expect(createResponse.status).toBe(202);
+
+		const listResponse = await getJson(
+			`${BASE_URL}/api/questions/jobs?page=1&limit=10&topic=${encodeURIComponent(uniqueTopic)}`
+		);
+
+		expect(listResponse.status).toBe(200);
+		expect(Array.isArray(listResponse.data.data)).toBe(true);
+		expect(listResponse.data.pagination.page).toBe(1);
+		expect(listResponse.data.pagination.limit).toBe(10);
+		expect(listResponse.data.filters.topic).toBe(uniqueTopic);
+
+		const found = listResponse.data.data.some(
+			(job) => job.job_id === createResponse.data.job_id
+		);
+		expect(found).toBe(true);
+	});
+
+	test('returns 400 for invalid list query', async () => {
+		const response = await getJson(
+			`${BASE_URL}/api/questions/jobs?page=0&limit=500`
+		);
+
+		expect(response.status).toBe(400);
+		expect(response.data.errorCode).toBe('VALIDATION_ERROR');
+	});
 });
