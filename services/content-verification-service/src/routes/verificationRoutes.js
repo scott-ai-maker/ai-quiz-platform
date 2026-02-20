@@ -6,7 +6,7 @@ const verificationService = new VerificationService();
 
 router.post('/verify', async (req, res, next) => {
   try {
-    const result = verificationService.verify(req.body);
+    const result = await verificationService.verify(req.body);
     res.json(result);
   } catch (error) {
     next(error);

@@ -1,4 +1,5 @@
 const MockAIProvider = require('../providers/mockAIProvider');
+const ClaudeAIProvider = require('../providers/claudeAIProvider');
 const AIRequestLogRepository = require('../repositories/AIRequestLogRepository');
 const { withTimeout } = require('../utils/timeout');
 const { withRetry } = require('../utils/retry');
@@ -12,7 +13,7 @@ const {
 
 class AIOrchestrationService {
   constructor() {
-    this.provider = new MockAIProvider('mock-ai-v1');
+    this.provider = this.buildProvider();
     this.logRepository = new AIRequestLogRepository();
 
     this.timeoutMs = parseInt(process.env.AI_REQUEST_TIMEOUT_MS || '3000', 10);
@@ -29,6 +30,26 @@ class AIOrchestrationService {
         10
       ),
     });
+  }
+
+  buildProvider() {
+    const providerName = (process.env.AI_PROVIDER || 'mock').toLowerCase();
+
+    if (providerName === 'claude') {
+      try {
+        return new ClaudeAIProvider({
+          name: 'claude-ai-v1',
+          model: process.env.ANTHROPIC_MODEL,
+          apiKey: process.env.ANTHROPIC_API_KEY,
+        });
+      } catch (error) {
+        console.warn(
+          `⚠️ [ai-orchestration-service] Claude provider unavailable, falling back to mock provider: ${error.message}`
+        );
+      }
+    }
+
+    return new MockAIProvider('mock-ai-v1');
   }
 
   async persistRequestLog(logData) {

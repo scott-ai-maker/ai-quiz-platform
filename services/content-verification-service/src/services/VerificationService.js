@@ -3,11 +3,16 @@ const DecisionEngine = require('./DecisionEngine');
 const VerificationJobRepository = require('../repositories/VerificationJobRepository');
 const { verificationQueue } = require('../queue/queues');
 const { randomUUID } = require('crypto');
+const AccuracyValidator = require('./AccuracyValidator');
+const RetryHandler = require('./RetryHandler');
 
 class VerificationService {
   constructor() {
     this.decisionEngine = new DecisionEngine();
     this.jobRepository = new VerificationJobRepository();
+    this.accuracyValidator = new AccuracyValidator();
+    this.retryAttempts = Number(process.env.VERIFICATION_RETRY_ATTEMPTS || 3);
+    this.retryBaseDelayMs = Number(process.env.VERIFICATION_RETRY_BASE_DELAY_MS || 250);
   }
 
   scoreFormat(payload) {
@@ -42,35 +47,39 @@ class VerificationService {
     };
   }
 
-  scoreAccuracy(payload) {
-    let score = 100;
-    const reasons = [];
-
-    const hasAnswerIndex = Number.isInteger(payload.answer);
-    if (hasAnswerIndex) {
-      if (payload.answer < 0 || payload.answer >= payload.options.length) {
-        score -= 40;
-        reasons.push('Answer index is out of option range');
+  async scoreAccuracy(payload) {
+    return RetryHandler.execute(
+      async () => this.accuracyValidator.validate(payload),
+      {
+        maxAttempts: this.retryAttempts,
+        baseDelayMs: this.retryBaseDelayMs,
+        shouldRetry: (error) =>
+          error.code === 'RATE_LIMIT' ||
+          error.code === 'PROVIDER_ERROR' ||
+          String(error.message || '').toLowerCase().includes('timeout'),
       }
-    } else {
-      const answerExists = payload.options.includes(payload.answer);
-      if (!answerExists) {
-        score -= 40;
-        reasons.push('Answer text does not match any option');
-      }
-    }
-
-    return {
-      score: Math.max(0, score),
-      reasons,
-    };
+    );
   }
 
-  verify(payload) {
+  async verify(payload) {
     validateVerificationPayload(payload);
 
     const formatResult = this.scoreFormat(payload);
-    const accuracyResult = this.scoreAccuracy(payload);
+    let accuracyResult;
+
+    try {
+      accuracyResult = await this.scoreAccuracy(payload);
+    } catch (error) {
+      const fallbackResult = this.accuracyValidator.localHeuristic(payload);
+      accuracyResult = {
+        ...fallbackResult,
+        reasons: [
+          ...fallbackResult.reasons,
+          `Accuracy validation provider unavailable: ${error.message}`,
+        ],
+        source: `${fallbackResult.source}-fallback`,
+      };
+    }
 
     const overallScore = Math.round(
       formatResult.score * 0.6 + accuracyResult.score * 0.4
@@ -85,6 +94,8 @@ class VerificationService {
         format_score: formatResult.score,
         accuracy_score: accuracyResult.score,
       },
+      confidence: accuracyResult.confidence,
+      accuracy_source: accuracyResult.source,
       findings: [...formatResult.reasons, ...accuracyResult.reasons],
       verified_at: new Date().toISOString(),
     };

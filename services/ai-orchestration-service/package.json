@@ -11,6 +11,7 @@
   "description": "Resilient AI orchestration service with retry, timeout, circuit breaker, and fallback strategies",
   "license": "ISC",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
     "cors": "^2.8.6",
     "dotenv": "^17.2.4",
     "express": "^5.2.1",
