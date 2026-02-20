@@ -79,6 +79,16 @@ class QuestionGenerationService {
 		};
 	}
 
+	validateMetricsQuery(query = {}) {
+		const hours = query.hours === undefined ? 24 : Number(query.hours);
+
+		if (!Number.isInteger(hours) || hours < 1 || hours > 168) {
+			throw new Error('hours must be an integer between 1 and 168');
+		}
+
+		return { hours };
+	}
+
 	async enqueueJob(job) {
 		try {
 			await questionGenerationQueue.add(
@@ -210,6 +220,60 @@ class QuestionGenerationService {
 			filters: {
 				status: validatedQuery.status || null,
 				topic: validatedQuery.topic || null,
+			},
+		};
+	}
+
+	async getMetrics(query = {}) {
+		const validatedQuery = this.validateMetricsQuery(query);
+		const dbMetrics = await this.repository.getMetrics(validatedQuery);
+
+		const queueCounts = await questionGenerationQueue.getJobCounts(
+			'waiting',
+			'active',
+			'completed',
+			'failed',
+			'delayed',
+			'paused'
+		);
+
+		const totalJobs = dbMetrics.total_jobs || 0;
+		const completedJobs = dbMetrics.completed_jobs || 0;
+		const failedJobs = dbMetrics.failed_jobs || 0;
+		const terminalJobs = completedJobs + failedJobs;
+
+		const successRate =
+			terminalJobs > 0 ? Number(((completedJobs / terminalJobs) * 100).toFixed(2)) : 0;
+		const failureRate =
+			terminalJobs > 0 ? Number(((failedJobs / terminalJobs) * 100).toFixed(2)) : 0;
+
+		return {
+			window: {
+				hours: validatedQuery.hours,
+			},
+			job_metrics: {
+				total: totalJobs,
+				queued: dbMetrics.queued_jobs || 0,
+				processing: dbMetrics.processing_jobs || 0,
+				completed: completedJobs,
+				failed: failedJobs,
+			},
+			rate_metrics: {
+				success_rate_percent: successRate,
+				failure_rate_percent: failureRate,
+			},
+			latency_metrics: {
+				avg_completion_latency_ms: dbMetrics.avg_completion_latency_ms || 0,
+			},
+			queue_depth: {
+				waiting: queueCounts.waiting || 0,
+				active: queueCounts.active || 0,
+				delayed: queueCounts.delayed || 0,
+				paused: queueCounts.paused || 0,
+			},
+			queue_history: {
+				completed: queueCounts.completed || 0,
+				failed: queueCounts.failed || 0,
 			},
 		};
 	}

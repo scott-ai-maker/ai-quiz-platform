@@ -182,4 +182,29 @@ describe('Question Routes Live Integration', () => {
 		expect(response.status).toBe(400);
 		expect(response.data.errorCode).toBe('VALIDATION_ERROR');
 	});
+
+	test('returns queue and rate metrics for jobs', async () => {
+		const response = await getJson(
+			`${BASE_URL}/api/questions/jobs/metrics?hours=24`
+		);
+
+		expect(response.status).toBe(200);
+		expect(response.data.window.hours).toBe(24);
+		expect(typeof response.data.job_metrics.total).toBe('number');
+		expect(typeof response.data.rate_metrics.success_rate_percent).toBe('number');
+		expect(typeof response.data.latency_metrics.avg_completion_latency_ms).toBe(
+			'number'
+		);
+		expect(typeof response.data.queue_depth.waiting).toBe('number');
+		expect(typeof response.data.queue_depth.active).toBe('number');
+	});
+
+	test('returns 400 for invalid metrics hours query', async () => {
+		const response = await getJson(
+			`${BASE_URL}/api/questions/jobs/metrics?hours=0`
+		);
+
+		expect(response.status).toBe(400);
+		expect(response.data.errorCode).toBe('VALIDATION_ERROR');
+	});
 });
