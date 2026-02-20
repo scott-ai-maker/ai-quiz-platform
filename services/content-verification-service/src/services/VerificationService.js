@@ -90,6 +90,16 @@ class VerificationService {
     };
   }
 
+  validateMetricsQuery(query = {}) {
+    const hours = query.hours === undefined ? 24 : Number(query.hours);
+
+    if (!Number.isInteger(hours) || hours < 1 || hours > 168) {
+      throw new Error('hours must be an integer between 1 and 168');
+    }
+
+    return { hours };
+  }
+
   async submitAsyncVerification(payload) {
     validateVerificationPayload(payload);
 
@@ -138,6 +148,57 @@ class VerificationService {
       error_message: job.error_message,
       created_at: job.created_at,
       updated_at: job.updated_at,
+    };
+  }
+
+  async getMetrics(query = {}) {
+    const validatedQuery = this.validateMetricsQuery(query);
+    const dbMetrics = await this.jobRepository.getMetrics(validatedQuery);
+
+    const queueCounts = await verificationQueue.getJobCounts(
+      'waiting',
+      'active',
+      'completed',
+      'failed',
+      'delayed',
+      'paused'
+    );
+
+    const completed = dbMetrics.completed_jobs || 0;
+    const failed = dbMetrics.failed_jobs || 0;
+    const terminal = completed + failed;
+
+    const successRate = terminal > 0 ? Number(((completed / terminal) * 100).toFixed(2)) : 0;
+    const failureRate = terminal > 0 ? Number(((failed / terminal) * 100).toFixed(2)) : 0;
+
+    return {
+      window: {
+        hours: validatedQuery.hours,
+      },
+      job_metrics: {
+        total: dbMetrics.total_jobs || 0,
+        queued: dbMetrics.queued_jobs || 0,
+        processing: dbMetrics.processing_jobs || 0,
+        completed,
+        failed,
+      },
+      rate_metrics: {
+        success_rate_percent: successRate,
+        failure_rate_percent: failureRate,
+      },
+      latency_metrics: {
+        avg_completion_latency_ms: dbMetrics.avg_completion_latency_ms || 0,
+      },
+      queue_depth: {
+        waiting: queueCounts.waiting || 0,
+        active: queueCounts.active || 0,
+        delayed: queueCounts.delayed || 0,
+        paused: queueCounts.paused || 0,
+      },
+      queue_history: {
+        completed: queueCounts.completed || 0,
+        failed: queueCounts.failed || 0,
+      },
     };
   }
 }

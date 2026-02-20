@@ -22,6 +22,15 @@ router.post('/verify/async', async (req, res, next) => {
   }
 });
 
+router.get('/jobs/metrics', async (req, res, next) => {
+  try {
+    const result = await verificationService.getMetrics(req.query);
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+});
+
 router.get('/jobs/:jobId', async (req, res, next) => {
   try {
     const job = await verificationService.getAsyncVerificationJob(req.params.jobId);

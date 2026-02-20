@@ -157,6 +157,31 @@ services:
     networks:
       - quiz-network
 
+  content-verification-service:
+    build: ./services/content-verification-service
+    ports:
+      - "3009:3009"
+    environment:
+      - PORT=3009
+      - SERVICE_NAME=content-verification-service
+      - NODE_ENV=development
+      - VERIFICATION_APPROVE_THRESHOLD=80
+      - VERIFICATION_FLAG_THRESHOLD=60
+      - POSTGRES_HOST=quiz-postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=quiz_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres123
+      - REDIS_HOST=quiz-redis
+      - REDIS_PORT=6379
+    depends_on:
+      quiz-postgres:
+        condition: service_healthy
+      quiz-redis:
+        condition: service_healthy
+    networks:
+      - quiz-network
+
 
 networks:
   quiz-network:

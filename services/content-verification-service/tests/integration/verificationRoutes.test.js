@@ -108,4 +108,22 @@ describe('Content Verification Routes', () => {
     expect(finalResponse.body.verification_result).toBeDefined();
     expect(finalResponse.body.verification_result.decision).toBeDefined();
   });
+
+  it('returns verification queue and quality metrics', async () => {
+    const response = await request(app).get('/api/verification/jobs/metrics?hours=24');
+
+    expect(response.status).toBe(200);
+    expect(response.body.window.hours).toBe(24);
+    expect(typeof response.body.job_metrics.total).toBe('number');
+    expect(typeof response.body.rate_metrics.success_rate_percent).toBe('number');
+    expect(typeof response.body.latency_metrics.avg_completion_latency_ms).toBe('number');
+    expect(typeof response.body.queue_depth.waiting).toBe('number');
+  });
+
+  it('returns 400 for invalid metrics query', async () => {
+    const response = await request(app).get('/api/verification/jobs/metrics?hours=0');
+
+    expect(response.status).toBe(400);
+    expect(response.body.errorCode).toBe('VALIDATION_ERROR');
+  });
 });
