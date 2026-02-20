@@ -99,6 +99,64 @@ services:
     networks:
       - quiz-network
 
+  ai-orchestration-service:
+    build: ./services/ai-orchestration-service
+    ports:
+      - "3006:3006"
+    environment:
+      - PORT=3006
+      - SERVICE_NAME=ai-orchestration-service
+      - NODE_ENV=development
+      - POSTGRES_HOST=quiz-postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=quiz_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres123
+      - REDIS_HOST=quiz-redis
+      - REDIS_PORT=6379
+      - AI_REQUEST_TIMEOUT_MS=3000
+      - AI_MAX_RETRIES=2
+      - AI_RETRY_BASE_DELAY_MS=250
+      - AI_CIRCUIT_BREAKER_FAILURE_THRESHOLD=5
+      - AI_CIRCUIT_BREAKER_RESET_TIMEOUT_MS=15000
+    depends_on:
+      quiz-postgres:
+        condition: service_healthy
+      quiz-redis:
+        condition: service_healthy
+    networks:
+      - quiz-network
+
+  question-generation-service:
+    build: ./services/question-generation-service
+    ports:
+      - "3008:3008"
+    environment:
+      - PORT=3008
+      - SERVICE_NAME=question-generation-service
+      - NODE_ENV=development
+      - POSTGRES_HOST=quiz-postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=quiz_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres123
+      - REDIS_HOST=quiz-redis
+      - REDIS_PORT=6379
+      - AI_ORCHESTRATION_URL=http://ai-orchestration-service:3006
+      - PROMPT_FRAMEWORK_URL=http://prompt-framework-service:3007
+      - PROMPT_TEMPLATE_KEY=quiz.question.generation.v1
+    depends_on:
+      quiz-postgres:
+        condition: service_healthy
+      quiz-redis:
+        condition: service_healthy
+      prompt-framework-service:
+        condition: service_started
+      ai-orchestration-service:
+        condition: service_started
+    networks:
+      - quiz-network
+
 
 networks:
   quiz-network:
